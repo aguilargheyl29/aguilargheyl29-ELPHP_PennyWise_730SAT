@@ -12,6 +12,8 @@ class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $primaryKey = 'userID'; 
+
     /**
      * The attributes that are mass assignable.
      *
@@ -34,9 +36,14 @@ class User extends Authenticatable
         'userPassword',
         'remember_token', // Default hidden field for Laravel Auth
     ];
+    
+    public function verification()
+    {
+        return $this->hasOne(EmailVerification::class);
+    }
 
     /**
-     * Set password mutator to ensure hashing when creating or updating user passwords.
+     * Automatically hash the password whenever it is set or updated.
      *
      * @param string $value
      */
@@ -45,8 +52,37 @@ class User extends Authenticatable
         $this->attributes['userPassword'] = bcrypt($value);
     }
 
+    /**
+     * Override the default getAuthPassword method to use `userPassword`.
+     *
+     * @return string
+     */
     public function getAuthPassword()
     {
         return $this->userPassword;
+    }
+
+    /**
+     * Define a one-to-many relationship with the Settings model.
+     */
+    public function settings()
+    {
+        return $this->hasMany(Settings::class, 'userID');
+    }
+
+    /**
+     * Define a one-to-many relationship with the ExpenseData model.
+     */
+    public function expenses()
+    {
+        return $this->hasMany(ExpenseData::class, 'userID');
+    }
+
+    /**
+     * Define a one-to-many relationship with the BudgetData model.
+     */
+    public function budgets()
+    {
+        return $this->hasMany(BudgetData::class, 'userID');
     }
 }
