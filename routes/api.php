@@ -8,9 +8,10 @@ use App\Http\Controllers\ExpenseDataController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\BudgetDataController;
 
-// Public Routes
+
 Route::post('/register', [UserController::class, 'register']);
 Route::post('/login', [UserController::class, 'login']);
+Route::get('/verify-email', [UserController::class, 'verifyEmail']);
 Route::apiResource('users', UserController::class);
 Route::apiResource('settings', SettingsController::class);
 Route::apiResource('expenses', ExpenseDataController::class);

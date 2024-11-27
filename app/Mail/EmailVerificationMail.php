@@ -3,9 +3,12 @@
 namespace App\Mail;
 
 use Illuminate\Mail\Mailable;
+use Illuminate\Queue\SerializesModels;
 
 class EmailVerificationMail extends Mailable
 {
+    use SerializesModels;
+
     public $verificationUrl;
 
     public function __construct($verificationUrl)
@@ -15,8 +18,9 @@ class EmailVerificationMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Verify Your Email Address')
-                    ->view('emails.verify-email')
-                    ->with(['verificationUrl' => $this->verificationUrl]);
+        return $this->view('emails.verify_email') 
+                    ->with([
+                        'verificationUrl' => $this->verificationUrl, 
+                    ]);
     }
 }

@@ -12,11 +12,13 @@ class EmailVerification extends Model
     protected $fillable = [
         'user_id',
         'token',
+        'expires_at',
     ];
 
-
+    
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'user_id', 'userID');
     }
 }
+

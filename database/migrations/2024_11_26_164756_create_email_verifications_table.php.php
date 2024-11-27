@@ -15,10 +15,10 @@ class CreateEmailVerificationsTable extends Migration
             $table->timestamp('expires_at');
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->foreign('user_id')->references('userID')->on('users')->onDelete('cascade');
         });
     }
-
+        
     public function down()
     {
         Schema::dropIfExists('email_verifications');
