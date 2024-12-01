@@ -25,6 +25,7 @@ class User extends Authenticatable
         'userPassword',
         'userFullName',
         'userImage',
+        'email_verified_at',  // Adding email_verified_at here
     ];
 
     /**
@@ -36,11 +37,6 @@ class User extends Authenticatable
         'userPassword',
         'remember_token', // Default hidden field for Laravel Auth
     ];
-    
-    public function verification()
-    {
-        return $this->hasOne(EmailVerification::class);
-    }
 
     /**
      * Automatically hash the password whenever it is set or updated.
@@ -60,29 +56,5 @@ class User extends Authenticatable
     public function getAuthPassword()
     {
         return $this->userPassword;
-    }
-
-    /**
-     * Define a one-to-many relationship with the Settings model.
-     */
-    public function settings()
-    {
-        return $this->hasMany(Settings::class, 'userID');
-    }
-
-    /**
-     * Define a one-to-many relationship with the ExpenseData model.
-     */
-    public function expenses()
-    {
-        return $this->hasMany(ExpenseData::class, 'userID');
-    }
-
-    /**
-     * Define a one-to-many relationship with the BudgetData model.
-     */
-    public function budgets()
-    {
-        return $this->hasMany(BudgetData::class, 'userID');
     }
 }

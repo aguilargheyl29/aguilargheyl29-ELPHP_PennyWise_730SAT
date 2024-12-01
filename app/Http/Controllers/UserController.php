@@ -7,67 +7,70 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Illuminate\Support\Carbon;
-use App\Models\EmailVerification;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Carbon\Carbon;
+use App\Models\EmailVerification;
 use App\Mail\EmailVerificationMail;
 
 class UserController extends Controller
 {
-
-    // Register a new user
     public function register(Request $request)
     {
         try {
             // Validate incoming request
             $validator = Validator::make($request->all(), [
-                'userEmail' => 'required|email|unique:users,userEmail',
-                'userPassword' => 'required|min:6',
-                'confirmPassword' => 'required|same:userPassword',
+                'userEmail' => 'required|email|unique:users,userEmail',  // Validate email
+                'userPassword' => 'required|min:6',  // Password must be at least 6 characters
+                'confirmPassword' => 'required|same:userPassword',  // Confirm password must match user password
             ]);
-
+    
+            // If validation fails, return errors
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
-
-            // Create the user - setUserPasswordAttribute will automatically hash the password
+    
+            // Create the user - do not hash the password (store it as plain-text)
             $user = User::create([
                 'userEmail' => $request->userEmail,
-                'userPassword' => $request->userPassword, // Hash the password
+                'userPassword' => $request->userPassword,  // Store password as plain-text
             ]);
-
-            // Log user creation
+    
+            // Log user creation for debugging
             \Log::info('User created successfully', ['user' => $user]);
-
+    
             // Generate the email verification token
             $token = Str::random(60);  // Generate a random token
             \Log::info('Generated token', ['token' => $token]);
-
+    
             // Create the email verification record
             $verification = EmailVerification::create([
-                'user_id' => $user->userID, // Ensure the user_id matches the user's userID
+                'user_id' => $user->userID,  // Ensure the user_id matches the user's userID
                 'token' => $token,
-                'expires_at' => Carbon::now()->addHours(24),
+                'expires_at' => Carbon::now()->addHours(24),  // Set expiration for token
             ]);
-
+    
             // Log verification record creation
             \Log::info('Email verification record created', ['verification' => $verification]);
-
+    
+            // Prepare the verification URL
             $verificationUrl = url("/verify-email?token={$token}");
             \Log::info('Verification URL', ['verificationUrl' => $verificationUrl]);
+    
+            // Send verification email to the user
             Mail::to($user->userEmail)->send(new EmailVerificationMail($verificationUrl));
-            
+    
+            // Return response to the user with success message and user info
             return response()->json([
                 'message' => 'User registered successfully. A verification email has been sent to your email address.',
                 'user' => $user,
             ], 201);
-
+    
         } catch (\Exception $e) {
             // Log the error for debugging
             \Log::error('Error during registration', ['exception' => $e]);
-
+    
+            // Return a generic error response
             return response()->json(['error' => 'An unexpected error occurred.'], 500);
         }
     }
@@ -77,22 +80,24 @@ class UserController extends Controller
     public function verifyEmail(Request $request)
     {
         try {
+            // Check if the token exists and is not expired
             $verification = EmailVerification::where('token', $request->token)
                                               ->where('expires_at', '>', Carbon::now())
                                               ->first();
-    
+
             if ($verification) {
-                $user = User::find($verification->user_id);
+                // Find the user by user_id
+                $user = User::find($verification->userID);
                 if ($user) {
                     // Log before updating the email_verified_at field
                     \Log::info('Verifying email for user', ['user_id' => $user->userID]);
-    
-                    // Set email_verified_at field
+
+                    // Update email_verified_at field
                     $user->email_verified_at = Carbon::now();
                     
-                    // Save the user after updating the email_verified_at field
+                    // Save the updated user
                     $userSaved = $user->save();
-    
+
                     // Log the result of the save operation
                     if ($userSaved) {
                         \Log::info('Email verified and updated successfully', [
@@ -102,10 +107,10 @@ class UserController extends Controller
                     } else {
                         \Log::error('Failed to save email verification', ['user_id' => $user->userID]);
                     }
-    
+
                     // Delete the verification record after success
                     $verification->delete();
-    
+
                     return response()->json(['message' => 'Email verified successfully.'], 200);
                 } else {
                     return response()->json(['error' => 'User not found.'], 404);
@@ -118,60 +123,51 @@ class UserController extends Controller
             return response()->json(['error' => 'An unexpected error occurred during email verification.'], 500);
         }
     }
-      
 
     // Login user
     public function login(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'userEmail' => 'required|email',
-            'userPassword' => 'required|min:6',
-        ]);
-    
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-    
-        // Trim and sanitize email input
-        $email = strtolower(trim($request->userEmail));
-    
-        $user = User::whereRaw('LOWER(userEmail) = ?', [$email])->first();
-    
-        if (!$user) {
-            return response()->json(['error' => 'User not found.'], 404);
-        }
-    
-        // Log the user found
-        \Log::info('User found for login', ['user_id' => $user->userID, 'userEmail' => $user->userEmail]);
-    
-        // Check if the user's email is verified
-        if (!$user->email_verified_at) {
-            return response()->json(['error' => 'Please verify your email address before logging in.'], 403);
-        }
-    
-        // Log the password entered
-        \Log::info('Password entered for login', ['userPassword' => $request->userPassword]);
-    
-        // Log the hashed password from the database
-        \Log::info('Hashed password from database', ['user_id' => $user->userID, 'hashed_password' => $user->userPassword]);
-    
-        // Verify password
-        if (Hash::check($request->userPassword, $user->userPassword)) {
-            \Log::info('Login successful for user', ['user_id' => $user->userID]);
-    
-            $token = $user->createToken('auth_token')->plainTextToken;
-    
-            return response()->json([
-                'message' => 'Login successful',
-                'token' => $token,
-                'user' => $user,
-            ], 200);
-        }
-    
-        \Log::info('Invalid credentials for user', ['user_id' => $user->userID]);
+{
+    $validator = Validator::make($request->all(), [
+        'userEmail' => 'required|email',
+        'userPassword' => 'required|min:6',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
+
+    // Sanitize inputs
+    $email = strtolower(trim($request->userEmail));
+    $password = trim($request->userPassword);
+
+    // Log input for debugging
+    \Log::info('Login attempt', ['email' => $email, 'password' => $password]);
+
+    // Find the user by email (case insensitive)
+    $user = User::whereRaw('LOWER(userEmail) = ?', [$email])->first();
+
+    // Check if user was found
+    if (!$user) {
+        \Log::warning('User not found', ['email' => $email]);
+        return response()->json(['error' => 'User not found.'], 404);
+    }
+
+    // Check password
+    if (Hash::check($password, $user->userPassword)) {
+        // Password is correct, generate the token
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful',
+            'token' => $token,
+            'user' => $user,
+        ], 200);
+    } else {
+        // Log the failed attempt for debugging
+        \Log::warning('Invalid password attempt', ['email' => $email]);
         return response()->json(['error' => 'Invalid credentials.'], 401);
-    }    
-    
+    }
+}
 
     // Update User Profile (Username, Fullname, Image)
     public function updateProfile(Request $request)
