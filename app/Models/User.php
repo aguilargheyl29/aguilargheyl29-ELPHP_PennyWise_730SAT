@@ -57,4 +57,25 @@ class User extends Authenticatable
     {
         return $this->userPassword;
     }
+        /**
+     * Define a one-to-many relationship with the Settings model.
+     */
+    public function settings()
+    {
+        return $this->hasMany(Settings::class, 'userID');
+    }
+    /**
+     * Define a one-to-many relationship with the ExpenseData model.
+     */
+    public function expenses()
+    {
+        return $this->hasMany(ExpenseData::class, 'userID');
+    }
+    /**
+     * Define a one-to-many relationship with the BudgetData model.
+     */
+    public function budgets()
+    {
+        return $this->hasMany(BudgetData::class, 'userID');
+    }
 }
