@@ -17,7 +17,6 @@ class CategoryController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'categoryIcon' => 'nullable|string|max:255',
             'categoryName' => 'required|string|max:255|unique:categories,categoryName',
             'categoryDescription' => 'nullable|string',
         ]);
